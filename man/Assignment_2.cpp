@@ -9,28 +9,27 @@ using namespace std;
 // A class to represent a CSP problem
 class CSP {
 public:
-    vector<string> variables; // Variables in the problem
-    unordered_map<string, vector<int>> domains; // Domains of each variable
-    vector<function<bool(unordered_map<string, int>)>> constraints; // Constraints
+    vector<string> variables;
+    unordered_map<string, vector<int>> domains;
+    vector<function<bool(unordered_map<string, int>)>> constraints;
 
-    // Add a variable with its domain
+    unordered_map<string, int> finalAssignment; // store final solution
+
     void addVariable(const string& var, const vector<int>& domain) {
         variables.push_back(var);
         domains[var] = domain;
     }
 
-    // Add a constraint
     void addConstraint(function<bool(unordered_map<string, int>)> constraint) {
         constraints.push_back(constraint);
     }
 
-    // Backtracking search to solve the CSP
     bool backtrack(unordered_map<string, int>& assignment) {
         if (assignment.size() == variables.size()) {
-            return true; // All variables are assigned
+            finalAssignment = assignment;  // store solution
+            return true;
         }
 
-        // Select an unassigned variable
         string var;
         for (const auto& v : variables) {
             if (assignment.find(v) == assignment.end()) {
@@ -39,11 +38,9 @@ public:
             }
         }
 
-        // Try each value in the domain of the variable
         for (int value : domains[var]) {
             assignment[var] = value;
 
-            // Check if the assignment satisfies all constraints
             bool valid = true;
             for (const auto& constraint : constraints) {
                 if (!constraint(assignment)) {
@@ -56,14 +53,12 @@ public:
                 return true;
             }
 
-            // Undo the assignment
             assignment.erase(var);
         }
 
-        return false; // No solution found
+        return false;
     }
 
-    // Solve the CSP
     bool solve() {
         unordered_map<string, int> assignment;
         return backtrack(assignment);
@@ -73,12 +68,10 @@ public:
 int main() {
     CSP csp;
 
-    // Define variables and their domains
     csp.addVariable("X", {1, 2, 3});
     csp.addVariable("Y", {1, 2, 3});
     csp.addVariable("Z", {1, 2, 3});
 
-    // Add constraints
     csp.addConstraint([](unordered_map<string, int> assignment) {
         if (assignment.find("X") != assignment.end() && assignment.find("Y") != assignment.end()) {
             return assignment["X"] != assignment["Y"];
@@ -93,9 +86,12 @@ int main() {
         return true;
     });
 
-    // Solve the CSP
+    // Solve and print solution
     if (csp.solve()) {
         cout << "Solution found!" << endl;
+        for (auto &p : csp.finalAssignment) {
+            cout << p.first << " = " << p.second << endl;
+        }
     } else {
         cout << "No solution exists." << endl;
     }
