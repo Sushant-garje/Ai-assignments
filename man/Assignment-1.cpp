@@ -1,10 +1,4 @@
-#include <iostream>
-#include <vector>
-#include <queue>
-#include <stack>
-#include <map>
-#include <algorithm>
-
+#include <bits/stdc++.h>
 using namespace std;
 
 struct Node {
@@ -15,24 +9,35 @@ struct Node {
     Node(vector<int> s, Node* p, int b) : state(s), parent(p), blankPos(b) {}
 };
 
+vector<int> goal = {1,2,3,4,5,6,7,8,0};
+
 bool isGoalState(const vector<int>& state) {
-    vector<int> goal = {1, 2, 3, 4, 5, 6, 7, 8, 0};
     return state == goal;
 }
 
+// Print the solution path
 void printSolution(Node* node) {
-    if (node == nullptr) return;
-    printSolution(node->parent);
-    for (int i = 0; i < 9; i++) {
-        if (i % 3 == 0) cout << endl;
-        cout << node->state[i] << " ";
+    vector<Node*> path;
+    while (node != nullptr) {
+        path.push_back(node);
+        node = node->parent;
     }
-    cout << endl;
+    reverse(path.begin(), path.end());
+
+    cout << "\nSolution Path (" << path.size()-1 << " moves):\n";
+    for (Node* n : path) {
+        for (int i = 0; i < 9; i++) {
+            cout << n->state[i] << " ";
+            if (i % 3 == 2) cout << endl;
+        }
+        cout << endl;
+    }
 }
 
+// Generate all valid successors
 vector<Node*> getSuccessors(Node* node) {
     vector<Node*> successors;
-    vector<int> moves = {-1, 1, -3, 3}; // Left, Right, Up, Down
+    vector<int> moves = {-1,1,-3,3};
     int blank = node->blankPos;
 
     for (int move : moves) {
@@ -47,70 +52,41 @@ vector<Node*> getSuccessors(Node* node) {
     return successors;
 }
 
+// BFS search
 void BFS(vector<int> startState) {
-    queue<Node*> frontier;
-    map<vector<int>, bool> visited;
+    queue<Node*> q;
+    set<vector<int>> visited;
 
-    Node* root = new Node(startState, nullptr, find(startState.begin(), startState.end(), 0) - startState.begin());
-    frontier.push(root);
-    visited[startState] = true;
+    int blankPos = find(startState.begin(), startState.end(), 0) - startState.begin();
+    Node* root = new Node(startState, nullptr, blankPos);
 
-    while (!frontier.empty()) {
-        Node* current = frontier.front();
-        frontier.pop();
+    q.push(root);
+    visited.insert(startState);
+
+    while (!q.empty()) {
+        Node* current = q.front(); q.pop();
 
         if (isGoalState(current->state)) {
-            cout << "BFS Solution:" << endl;
             printSolution(current);
             return;
         }
 
         for (Node* successor : getSuccessors(current)) {
-            if (!visited[successor->state]) {
-                visited[successor->state] = true;
-                frontier.push(successor);
+            if (!visited.count(successor->state)) {
+                visited.insert(successor->state);
+                q.push(successor);
             }
         }
     }
-    cout << "No solution found with BFS." << endl;
-}
-
-void DFS(vector<int> startState) {
-    stack<Node*> frontier;
-    map<vector<int>, bool> visited;
-
-    Node* root = new Node(startState, nullptr, find(startState.begin(), startState.end(), 0) - startState.begin());
-    frontier.push(root);
-    visited[startState] = true;
-
-    while (!frontier.empty()) {
-        Node* current = frontier.top();
-        frontier.pop();
-
-        if (isGoalState(current->state)) {
-            cout << "DFS Solution:" << endl;
-            printSolution(current);
-            return;
-        }
-
-        for (Node* successor : getSuccessors(current)) {
-            if (!visited[successor->state]) {
-                visited[successor->state] = true;
-                frontier.push(successor);
-            }
-        }
-    }
-    cout << "No solution found with DFS." << endl;
+    cout << "No solution found!" << endl;
 }
 
 int main() {
-    vector<int> startState = {1, 2, 3, 4, 5, 6, 0, 7, 8}; // Example start state
+    vector<int> startState(9);
+    cout << "Enter the 8-puzzle initial state (0 for blank) in 3x3 format:\n";
+    for (int i = 0; i < 9; i++) cin >> startState[i];
 
-    cout << "Starting BFS..." << endl;
     BFS(startState);
-
-    cout << "Starting DFS..." << endl;
-    DFS(startState);
 
     return 0;
 }
