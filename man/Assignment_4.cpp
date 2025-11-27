@@ -3,7 +3,6 @@
 #include <queue>
 #include <unordered_map>
 #include <cmath>
-#include <limits>
 #include <algorithm>
 
 using namespace std;
@@ -16,21 +15,20 @@ struct Node {
     Node(int x, int y, double g = 0, double h = 0, Node* parent = nullptr)
         : x(x), y(y), g(g), h(h), parent(parent) {}
 
-    double f() const {
-        return g + h;
-    }
-
-    bool operator>(const Node& other) const {
-        return f() > other.f();
-    }
+    double f() const { return g + h; }
 };
 
 double heuristic(int x1, int y1, int x2, int y2) {
-    return sqrt(pow(x1 - x2, 2) + pow(y1 - y2, 2));
+    return abs(x1 - x2) + abs(y1 - y2);  // Manhattan distance
 }
 
 vector<pair<int, int>> getNeighbors(int x, int y) {
-    return {{x + 1, y}, {x - 1, y}, {x, y + 1}, {x, y - 1}};
+    vector<pair<int, int>> neighbors;
+    neighbors.push_back(make_pair(x + 1, y));
+    neighbors.push_back(make_pair(x - 1, y));
+    neighbors.push_back(make_pair(x, y + 1));
+    neighbors.push_back(make_pair(x, y - 1));
+    return neighbors;
 }
 
 bool isValid(int x, int y, int rows, int cols, const vector<vector<int>>& grid) {
@@ -40,68 +38,84 @@ bool isValid(int x, int y, int rows, int cols, const vector<vector<int>>& grid) 
 vector<pair<int, int>> reconstructPath(Node* node) {
     vector<pair<int, int>> path;
     while (node) {
-        path.emplace_back(node->x, node->y);
+        path.push_back(make_pair(node->x, node->y));
         node = node->parent;
     }
     reverse(path.begin(), path.end());
     return path;
 }
 
-vector<pair<int, int>> aStar(const vector<vector<int>>& grid, pair<int, int> start, pair<int, int> goal) {
-    int rows = grid.size(), cols = grid[0].size();
-    priority_queue<Node, vector<Node>, greater<Node>> openSet;
-    unordered_map<int, Node*> allNodes;
+vector<pair<int, int>> aStar(const vector<vector<int>>& grid,
+                             pair<int, int> start,
+                             pair<int, int> goal) {
 
+    int rows = grid.size();
+    int cols = grid[0].size();
+
+    auto cmp = [](Node* a, Node* b) { return a->f() > b->f(); };
+    priority_queue<Node*, vector<Node*>, decltype(cmp)> openSet(cmp);
+
+    unordered_map<int, Node*> visited;
     auto hash = [&](int x, int y) { return x * cols + y; };
 
-    Node* startNode = new Node(start.first, start.second, 0, heuristic(start.first, start.second, goal.first, goal.second));
-    openSet.push(*startNode);
-    allNodes[hash(start.first, start.second)] = startNode;
+    Node* startNode = new Node(start.first, start.second,
+                               0, heuristic(start.first, start.second, goal.first, goal.second));
+    openSet.push(startNode);
+    visited[hash(start.first, start.second)] = startNode;
 
     while (!openSet.empty()) {
-        Node current = openSet.top();
+        Node* current = openSet.top();
         openSet.pop();
 
-        if (current.x == goal.first && current.y == goal.second) {
-            return reconstructPath(&current);
-        }
+        if (current->x == goal.first && current->y == goal.second)
+            return reconstructPath(current);
 
-        for (auto [nx, ny] : getNeighbors(current.x, current.y)) {
-            if (!isValid(nx, ny, rows, cols, grid)) continue;
+        vector<pair<int, int>> neighbors = getNeighbors(current->x, current->y);
+        for (size_t i = 0; i < neighbors.size(); i++) {
+            int nx = neighbors[i].first;
+            int ny = neighbors[i].second;
 
-            double tentativeG = current.g + 1;
-            int neighborHash = hash(nx, ny);
+            if (!isValid(nx, ny, rows, cols, grid))
+                continue;
 
-            if (allNodes.find(neighborHash) == allNodes.end() || tentativeG < allNodes[neighborHash]->g) {
-                Node* neighbor = new Node(nx, ny, tentativeG, heuristic(nx, ny, goal.first, goal.second), allNodes[hash(current.x, current.y)]);
-                openSet.push(*neighbor);
-                allNodes[neighborHash] = neighbor;
+            double tentativeG = current->g + 1;
+            int id = hash(nx, ny);
+
+            if (visited.find(id) == visited.end() || tentativeG < visited[id]->g) {
+                Node* neighbor = new Node(nx, ny, tentativeG,
+                                          heuristic(nx, ny, goal.first, goal.second), current);
+                visited[id] = neighbor;
+                openSet.push(neighbor);
             }
         }
     }
-
-    return {}; // No path found
+    return vector<pair<int, int>>(); // No path found
 }
 
 int main() {
-    vector<vector<int>> grid = {
-        {0, 0, 0, 0, 0},
-        {0, 1, 1, 1, 0},
-        {0, 0, 0, 1, 0},
-        {0, 1, 0, 0, 0},
-        {0, 0, 0, 0, 0}
-    };
+    int rows, cols;
+    cout << "Enter rows and columns: ";
+    cin >> rows >> cols;
 
-    pair<int, int> start = {0, 0};
-    pair<int, int> goal = {4, 4};
+    vector<vector<int>> grid(rows, vector<int>(cols));
+    cout << "Enter grid (0 = free, 1 = blocked):\n";
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            cin >> grid[i][j];
 
-    vector<pair<int, int>> path = aStar(grid, start, goal);
+    int sx, sy, gx, gy;
+    cout << "Enter start (row col): ";
+    cin >> sx >> sy;
+
+    cout << "Enter goal (row col): ";
+    cin >> gx >> gy;
+
+    vector<pair<int, int>> path = aStar(grid, make_pair(sx, sy), make_pair(gx, gy));
 
     if (!path.empty()) {
-        cout << "Path found:\n";
-        for (auto [x, y] : path) {
-            cout << "(" << x << ", " << y << ") ";
-        }
+        cout << "Path: ";
+        for (size_t i = 0; i < path.size(); i++)
+            cout << "(" << path[i].first << "," << path[i].second << ") ";
         cout << endl;
     } else {
         cout << "No path found.\n";
